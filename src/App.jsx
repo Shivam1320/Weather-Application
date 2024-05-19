@@ -1,29 +1,73 @@
-import TopButtons from "./components/TopButtons"
-import Inputs from "./components/Inputs"
-import TimeAndLocation from "./components/TimeAndLocation"
-import TempAndDetails from "./components/TempAndDetails"
-import Forecast from "./components/Forecast"
-import getFormattedWeatherData from "./services/weatherService"
+import { useEffect, useState } from "react";
+import TopButtons from "./components/TopButtons";
+import Inputs from "./components/Inputs";
+import TimeAndLocation from "./components/TimeAndLocation";
+import TempAndDetails from "./components/TempAndDetails";
+import Forecast from "./components/Forecast";
+import getFormattedWeatherData from "./services/weatherService";
 
-const App = () => {
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-  const getWeather = async () => {
-    const data = await getFormattedWeatherData({ q: "muzaffarpur" });
-    console.log(data);
-  }
-  getWeather();
-  return (
-    <div>
-      <div className="mx-auto max-w-screen-lg mt-4 py-5 px-32 bg-gradient-to-br shadow-xl shadow-gray-400 from-cyan-600 to-blue-700">
-        <TopButtons />
-        <Inputs />
-        <TimeAndLocation />
-        <TempAndDetails />
-        <Forecast />
-        <Forecast />
-      </div>
-    </div>
-  )
+function capitalizeFirstLetter(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-export default App
+const App = () => {
+  const [query, setQuery] = useState({ q: "muzaffarpur" });
+  const [units, setUnits] = useState("metric");
+  const [weather, setWeather] = useState(null);
+
+  const getWeather = async () => {
+    const cityName = query.q ? query.q : 'current location'
+    toast.info(`Fetching Weather data for ${capitalizeFirstLetter(cityName)}`);
+    try {
+      const data = await getFormattedWeatherData({ ...query, units });
+      setWeather(data);
+      toast.success(`Successfully fetched weather data for ${capitalizeFirstLetter(cityName)}`);
+    } catch (error) {
+      toast.error("Failed to fetch weather data");
+    }
+
+    await getFormattedWeatherData({ ...query, units }).then((data) => {
+      setWeather(data);
+    });
+  };
+
+  useEffect(() => {
+    getWeather();
+  }, [query, units]);
+
+
+// Code for Dynamic Color Change depending upon temperature
+  const formatBackground = () => {
+    if (!weather) return "from-cyan-600 to-blue-700";
+    const threshold = units === "metric" ? 20 : 60;
+    if (weather.temp <= threshold) return "from-cyan-600 to-blue-700";
+    return "from-yellow-600 to-orange-700";
+  };
+
+
+
+  return (
+    <div
+      className={`mx-auto max-w-screen-lg mt-4 py-5 px-32 bg-gradient-to-br shadow-xl shadow-gray-400 ${formatBackground()}`}
+    >
+      <TopButtons setQuery={setQuery} />
+      <Inputs setQuery={setQuery} setUnits={setUnits} />
+
+      {weather && (
+        <>
+          <TimeAndLocation weather={weather} />
+          <TempAndDetails weather={weather} units={units} />
+          <Forecast title="3 hour step forecast" data={weather.hourly} />
+          <Forecast title="daily forecast" data={weather.daily} />
+        </>
+      )}
+
+      <ToastContainer autoClose={2500} hideProgressBar={true} theme="colored" />
+    </div>
+  );
+};
+
+export default App;
